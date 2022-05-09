@@ -1,0 +1,90 @@
+// ==UserScript==
+// @name         YMS Extras
+// @namespace    https://trans-logistics.amazon.com/
+// @version      1.0
+// @description  Adds copy to clipboard to license plate and vehicle id's in YMS
+// @author       caevalle
+// @downloadURL  https://axzile.corp.amazon.com/-/carthamus/download_script/fmc-util.user.js
+// @updateURL    https://axzile.corp.amazon.com/-/carthamus/download_script/fmc-util.user.js
+// @match        https://trans-logistics.amazon.com/yms/shipclerk/#/yard/*
+// @match        https://trans-logistics-eu.amazon.com/yms/shipclerk/#/yard/*
+// @grant        GM_addStyle
+// ==/UserScript==
+
+(function() {
+    'use strict';
+    // Handle Tampermonkey running the script too late to catch the loading events
+    if (document.readyState != 'complete') {
+        window.addEventListener('load', windowLoadedCallback);
+    } else {
+        windowLoadedCallback();
+    }
+    // Determine region
+    const urlRegion = window.location.href.indexOf('trans-logistics-eu') > 0 ? '-eu' : '';
+    function windowLoadedCallback() {
+        GM_addStyle ( `
+               #dashboard{
+                   position:       relative;
+                   top:            0px;
+                   left:           0px;
+                   border-top-style:    solid;
+                   border-bottom-style: solid;
+                   border-color:   grey;
+                   display:        flex;
+               }
+               .clipboard-link {
+                   display: inline-block;
+                   height: 20px;
+                   width: 20px;
+                   border: 1px solid grey;
+                   border-radius: 5px;
+                   cursor: pointer;
+                   transition: transform .1s ease-out;
+               }
+               .clipboard-success {
+                   transform: scale(1.2);
+               }
+        `);
+        setInterval(addVridCopy,1000);
+        function addVridCopy() {
+            let vridColIndex = 0;
+            let tableHeaders = document.querySelectorAll('tr th t');
+            for (let header of tableHeaders) {
+                if(header.innerText == 'License Plate') {
+                    vridColIndex = header.cellIndex;
+                    break;
+                }
+            }
+            if (vridColIndex) {
+                const selectorString = '#ship-clerk-dashboard-table > tbody > tr > td:nth-child(' + ++vridColIndex + ')';
+                let vridContainers = document.querySelectorAll(selectorString);
+                for (let cell of vridContainers) {
+                    const clipboardLinkExists = cell.querySelector('.clipboard-link');
+                    if (!clipboardLinkExists) {
+                        let copyLink = document.createElement('img');
+                        // Icon by Sergey Furtaev, DE
+                        // Released under Creative Commons
+                        // Available at https://thenounproject.com/term/copy/14153/
+                        copyLink.src = 'https://drive-render.corp.amazon.com/view/bjerkt@/Tools%20-%20Mine/Userscripts/res/copy-icon.png'
+                        copyLink.classList.add('clipboard-link');
+                        cell.appendChild(copyLink);
+                        copyLink.addEventListener('click', function() {
+                            var selection = window.getSelection();
+                            var range = document.createRange();
+                            range.selectNodeContents(cell.children[0]);
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                            document.execCommand('copy');
+                            selection.removeAllRanges();
+                            copyLink.classList.add('clipboard-success');
+                            setTimeout(function() {
+                                copyLink.textContent = 'Copy to clipboard';
+                                copyLink.classList.remove('clipboard-success');
+                            },500);
+                        });
+                    }
+                }
+            }
+        }
+    }
+})();
